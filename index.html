@@ -199,7 +199,7 @@
         const originalDataBaseline = [
           { "venturi_name": "3F-D-01", "room_code": "C2.3.6", "room_name": "Working / Dispatch Area", "ccms_percent": "", "type": "SA", "design_flow": 359.0, "real_flow": "" },
           { "venturi_name": "3F-D-02", "room_code": "C2.3.2", "room_name": "Pre-packed Sterilized Store", "ccms_percent": "", "type": "SA", "design_flow": 91.0, "real_flow": "" },
-          { "venturi_name": "3F-D-03", "room_code": "C2.3.3", "room_name": "Store-Sterized Items", "ccms_percent": "", "type": "SA", "design_flow": 35.0, "real_flow": "" },
+          { "venturi_name": "3F-D-03", "room_code": "C2.3.3", "room_name": "Store-Sterized Items", "ccms_percent": "", "type": "SA", "design_flow": 199.0, "real_flow": "" },
           { "venturi_name": "3F-D-04", "room_code": "C2.3.1", "room_name": "Emergency Room", "ccms_percent": "", "type": "EA", "design_flow": 29.0, "real_flow": "" },
           { "venturi_name": "3F-D-05", "room_code": "C2.3.1", "room_name": "Emergency Room", "ccms_percent": "", "type": "SA", "design_flow": 35.0, "real_flow": "" },
           { "venturi_name": "3F-D-06", "room_code": "C2.3.5", "room_name": "Cooling Area", "ccms_percent": "", "type": "SA", "design_flow": 157.0, "real_flow": "" },
@@ -237,8 +237,17 @@
             let storedCloudUrl = localStorage.getItem('venturi_cloud_url');
             const storedAutoSync = localStorage.getItem('venturi_cloud_autosync');
 
+            // Force override if base baseline design is updated, or load from local storage
             if (stored) {
-                try { appData = JSON.parse(stored); } catch(e) { appData = JSON.parse(JSON.stringify(originalDataBaseline)); }
+                try { 
+                    appData = JSON.parse(stored); 
+                    // Verify if 3F-D-03 needs runtime patch from previous storage iterations
+                    const targetIdx = appData.findIndex(i => i.venturi_name === "3F-D-03");
+                    if(targetIdx !== -1 && appData[targetIdx].design_flow === 35.0) {
+                        appData[targetIdx].design_flow = 199.0;
+                        localStorage.setItem('premium_venturi_flow_data', JSON.stringify(appData));
+                    }
+                } catch(e) { appData = JSON.parse(JSON.stringify(originalDataBaseline)); }
             } else { appData = JSON.parse(JSON.stringify(originalDataBaseline)); }
 
             if (storedMetaStatus) document.getElementById('ahu-status-input').value = storedMetaStatus;
