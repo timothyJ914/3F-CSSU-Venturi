@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3F CSSU Clean Zone Flow Balancer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { -webkit-overflow-scrolling: touch; -webkit-tap-highlight-color: transparent; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        input, select, button { min-height: 44px; }
+        .grid-input { min-height: 38px !important; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen antialiased flex flex-col">
+
+    <header class="bg-slate-800/95 backdrop-blur-md border-b border-slate-700 sticky top-0 z-40 px-6 py-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3.5 w-full md:w-auto">
+                <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-inner">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                        3F CSSU Clean Zone Flow Balancer
+                        <span class="bg-blue-500/20 text-blue-400 text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-md border border-blue-500/30">Active</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">Multi-Tab Calculations Engine</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4 bg-slate-900/60 p-2 rounded-xl text-xs w-full md:w-auto justify-between md:justify-end border border-slate-700/60 flex-wrap">
+                <div class="flex flex-col px-2">
+                    <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-0.5">AHU Status</span>
+                    <input type="text" id="ahu-status-input" value="Active / Normal" oninput="saveSystemMeta()" class="bg-transparent text-white font-bold focus:outline-none w-28 text-left md:text-center border-b border-slate-600 focus:border-blue-500 pb-0.5">
+                </div>
+                <div class="h-8 w-px bg-slate-700"></div>
+                <div class="flex flex-col px-2">
+                    <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-0.5">SAF Volume</span>
+                    <input type="text" id="saf-percent-input" value="75%" oninput="saveSystemMeta()" class="bg-transparent text-white font-bold focus:outline-none w-16 text-center border-b border-slate-600 focus:border-blue-500 pb-0.5">
+                </div>
+                <div class="h-8 w-px bg-slate-700"></div>
+                <div class="flex flex-col px-2">
+                    <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-0.5">EAF Status</span>
+                    <input type="text" id="eaf-status-input" value="Active / Normal" oninput="saveSystemMeta()" class="bg-transparent text-white font-bold focus:outline-none w-28 text-left md:text-center border-b border-slate-600 focus:border-blue-500 pb-0.5">
+                </div>
+                <div class="h-8 w-px bg-slate-700"></div>
+                <div class="flex flex-col px-2">
+                    <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-0.5">EAF Volume</span>
+                    <input type="text" id="eaf-percent-input" value="70%" oninput="saveSystemMeta()" class="bg-transparent text-white font-bold focus:outline-none w-16 text-center border-b border-slate-600 focus:border-blue-500 pb-0.5">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 flex-1 flex flex-col gap-6">
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center bg-slate-800 p-3 rounded-2xl border border-slate-700 shadow-md">
+            <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-700/50">
+                <button onclick="switchTab('data-grid-tab', this)" id="default-tab-btn" class="flex-1 px-5 text-xs font-black rounded-lg transition-all duration-200 cursor-pointer bg-blue-600 text-white shadow-md">📊 Grid Sheet</button>
+                <button onclick="switchTab('charts-tab', this)" class="flex-1 px-5 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-200 transition-all duration-200 cursor-pointer">📈 Analytics</button>
+            </div>
+
+            <div class="grid grid-cols-2 lg:flex items-center gap-2">
+                <button onclick="toggleCloudModal()" class="px-4 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2 border border-slate-600">
+                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>Cloud Config
+                </button>
+                <button onclick="syncToCloud()" id="btn-sync-now" class="px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2">
+                    <svg id="sync-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 15H19"></path></svg>Sync Now
+                </button>
+                <button onclick="exportToCSV()" class="px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2 col-span-2 sm:col-span-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>Export CSV
+                </button>
+                <button onclick="resetToDefault()" class="px-3 bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-700 font-semibold text-xs rounded-xl transition cursor-pointer">Reset</button>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-center sm:justify-start gap-2 -mt-2 px-1">
+            <div id="cloud-status-indicator" class="text-[11px] font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-full border border-slate-700/60 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-slate-600 block"></span> Cloud Idle Standby
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-slate-800 p-5 rounded-2xl shadow-md border-t-4 border-emerald-500 border-slate-700 flex flex-col justify-between">
+                <div class="flex justify-between items-center mb-2"><h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">Supply Air (SA) Balance</h3><span class="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-500/20 font-mono">L/s</span></div>
+                <div class="grid grid-cols-2 gap-2 my-2">
+                    <div><p class="text-[10px] text-slate-500 font-bold uppercase">Design</p><p class="text-2xl font-black text-slate-300 font-mono" id="sa-design-total">0.0</p></div>
+                    <div><p class="text-[10px] text-slate-400 font-bold uppercase">Measured</p><p class="text-2xl font-black text-emerald-400 font-mono" id="sa-real-total">0.0</p></div>
+                </div>
+                <div class="pt-3 border-t border-slate-700/60 flex justify-between items-center text-xs"><span class="text-slate-400 font-medium">Deviation Shift:</span><span class="font-black font-mono text-sm" id="sa-deviation">-</span></div>
+            </div>
+
+            <div class="bg-slate-800 p-5 rounded-2xl shadow-md border-t-4 border-amber-500 border-slate-700 flex flex-col justify-between">
+                <div class="flex justify-between items-center mb-2"><h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">Exhaust Air (EA) Balance</h3><span class="bg-amber-500/10 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-500/20 font-mono">L/s</span></div>
+                <div class="grid grid-cols-2 gap-2 my-2">
+                    <div><p class="text-[10px] text-slate-500 font-bold uppercase">Design</p><p class="text-2xl font-black text-slate-300 font-mono" id="ea-design-total">0.0</p></div>
+                    <div><p class="text-[10px] text-slate-400 font-bold uppercase">Measured</p><p class="text-2xl font-black text-amber-400 font-mono" id="ea-real-total">0.0</p></div>
+                </div>
+                <div class="pt-3 border-t border-slate-700/60 flex justify-between items-center text-xs"><span class="text-slate-400 font-medium">Deviation Shift:</span><span class="font-black font-mono text-sm" id="ea-deviation">-</span></div>
+            </div>
+
+            <div class="bg-slate-800 p-5 rounded-2xl shadow-md border-t-4 border-blue-500 border-slate-700 flex flex-col justify-between">
+                <div class="flex justify-between items-center mb-2"><h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">Zone Net Pressurization</h3><span id="balance-status-badge" class="text-[10px] font-black px-2 py-0.5 rounded-md border">Loading...</span></div>
+                <div class="grid grid-cols-2 gap-2 my-2">
+                    <div><p class="text-[10px] text-slate-500 font-bold uppercase">Design Net</p><p class="text-2xl font-black text-slate-300 font-mono" id="net-design-total">0.0</p></div>
+                    <div><p class="text-[10px] text-slate-400 font-bold uppercase">Real Net</p><p class="text-2xl font-black text-blue-400 font-mono" id="net-real-total">0.0</p></div>
+                </div>
+                <div class="pt-3 border-t border-slate-700/60 flex justify-between items-center text-xs"><span class="text-slate-400 font-medium">Offset Shift Volume:</span><span class="font-bold text-slate-200 font-mono" id="net-status-diff">-</span></div>
+            </div>
+        </div>
+
+        <div class="flex-1 flex flex-col">
+            <div id="data-grid-tab" class="tab-content block flex flex-col gap-6">
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-sm">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full flex-1">
+                        <div class="relative flex-1">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </span>
+                            <input type="text" id="search-input" oninput="renderTable()" placeholder="Search Tag ID or description..." class="w-full pl-10 pr-4 py-2 border border-slate-700 rounded-xl text-sm bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <select id="type-filter" onchange="renderTable()" class="px-4 py-2 border border-slate-700 rounded-xl text-sm bg-slate-900 text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition font-bold cursor-pointer">
+                            <option value="ALL">All Streams</option>
+                            <option value="SA">SA - Supply Air</option>
+                            <option value="EA">EA - Exhaust Air</option>
+                        </select>
+                    </div>
+                    <div class="text-[11px] text-slate-400 font-bold bg-slate-900 px-4 py-2 rounded-xl border border-slate-700/60 w-full sm:w-auto text-center">
+                        Active Rows: <span id="row-count" class="text-blue-400 font-extrabold">0</span> / <span id="total-count" class="text-slate-400">0</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse table-fixed min-w-[950px]">
+                            <thead>
+                                <tr class="bg-slate-900 border-b border-slate-700 text-slate-400 text-[11px] font-black uppercase tracking-wider">
+                                    <th class="py-4 px-4 w-32">Venturi Tag ID</th>
+                                    <th class="py-4 px-3 w-28">Room Code</th>
+                                    <th class="py-4 px-4 w-52">Room Space Name</th>
+                                    <th class="py-4 px-2 text-center w-24">Type</th>
+                                    <th class="py-4 px-4 text-right w-32">Design (L/s)</th>
+                                    <th class="py-4 px-4 text-center w-36 bg-blue-950 text-blue-300 border-x border-slate-700/50">CCMS Venturi %</th>
+                                    <th class="py-4 px-4 text-center w-40 bg-indigo-950 text-indigo-300 font-black border-r border-slate-700/50">Real Flow (L/s)</th>
+                                    <th class="py-4 px-4 text-right w-28">Deviation</th>
+                                    <th class="py-4 px-4 text-center w-16">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="divide-y divide-slate-700 text-xs text-slate-300"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2"><span class="w-1.5 h-3.5 bg-blue-500 rounded-sm"></span>Append New Line</h3>
+                    <form id="add-row-form" onsubmit="addNewRow(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <input type="text" id="new-vname" required placeholder="Tag ID" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-900 text-white font-bold">
+                        <input type="text" id="new-rcode" placeholder="Room Code" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-900 text-white font-bold">
+                        <input type="text" id="new-rname" required placeholder="Space Description" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-900 text-white font-bold">
+                        <select id="new-type" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-900 text-slate-200 font-bold">
+                            <option value="SA">SA - Supply Air</option>
+                            <option value="EA">EA - Exhaust Air</option>
+                        </select>
+                        <input type="number" id="new-dflow" required min="0" step="any" placeholder="Design (L/s)" class="w-full px-3 py-2 border border-slate-700 rounded-xl text-xs bg-slate-900 text-white font-bold">
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl transition shadow-md cursor-pointer">Add Line</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="charts-tab" class="tab-content hidden flex-1 flex flex-col">
+                <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 flex-1 flex flex-col min-h-[480px]">
+                    <canvas id="flowComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="cloud-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-700 p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-sm font-black text-white">☁️ Target Spreadsheet Configuration</h3><button onclick="toggleCloudModal()" class="text-slate-400 hover:text-white text-2xl cursor-pointer">&times;</button></div>
+            <div class="space-y-4 mb-6">
+                <input type="url" id="cloud-url-input" oninput="validateCloudUrl()" class="w-full px-3 py-2.5 border border-slate-700 rounded-xl text-xs bg-slate-900 font-mono">
+                <label class="relative inline-flex items-center cursor-pointer select-none">
+                    <input type="checkbox" id="cloud-auto-sync" onchange="toggleAutoSyncChange()" class="sr-only peer">
+                    <div class="w-10 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                    <span class="ml-3 text-xs font-bold text-slate-300">Live Auto-Sync on cell entry blur</span>
+                </label>
+            </div>
+            <button onclick="toggleCloudModal()" class="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold py-2 rounded-xl">Save & Secure Pipeline</button>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_CLOUD_URL = "https://script.google.com/macros/s/AKfycbxlPK2vZVmQL5X-LRelLaPt16df4aVVI3nUkyaUIDR_oay8ptmF2AlbuRX3sGWCKBgn4A/exec";
+
+        const originalDataBaseline = [
+          { "venturi_name": "3F-D-01", "room_code": "C2.3.6", "room_name": "Working / Dispatch Area", "ccms_percent": "", "type": "SA", "design_flow": 359.0, "real_flow": "" },
+          { "venturi_name": "3F-D-02", "room_code": "C2.3.2", "room_name": "Pre-packed Sterilized Store", "ccms_percent": "", "type": "SA", "design_flow": 91.0, "real_flow": "" },
+          { "venturi_name": "3F-D-03", "room_code": "C2.3.3", "room_name": "Store-Sterized Items", "ccms_percent": "", "type": "SA", "design_flow": 35.0, "real_flow": "" },
+          { "venturi_name": "3F-D-04", "room_code": "C2.3.1", "room_name": "Emergency Room", "ccms_percent": "", "type": "EA", "design_flow": 29.0, "real_flow": "" },
+          { "venturi_name": "3F-D-05", "room_code": "C2.3.1", "room_name": "Emergency Room", "ccms_percent": "", "type": "SA", "design_flow": 35.0, "real_flow": "" },
+          { "venturi_name": "3F-D-06", "room_code": "C2.3.5", "room_name": "Cooling Area", "ccms_percent": "", "type": "SA", "design_flow": 157.0, "real_flow": "" },
+          { "venturi_name": "3F-D-07", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "SA", "design_flow": 465.0, "real_flow": "" },
+          { "venturi_name": "3F-D-08", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "SA", "design_flow": 465.0, "real_flow": "" },
+          { "venturi_name": "3F-D-09", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "SA", "design_flow": 465.0, "real_flow": "" },
+          { "venturi_name": "3F-D-10", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "EA", "design_flow": 416.0, "real_flow": "" },
+          { "venturi_name": "3F-D-11", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "SA", "design_flow": 465.0, "real_flow": "" },
+          { "venturi_name": "3F-D-12", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "SA", "design_flow": 80.0, "real_flow": "" },
+          { "venturi_name": "3F-D-13", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "EA", "design_flow": 13.0, "real_flow": "" },
+          { "venturi_name": "3F-D-14", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "EA", "design_flow": 417.0, "real_flow": "" },
+          { "venturi_name": "3F-D-15", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "EA", "design_flow": 417.0, "real_flow": "" },
+          { "venturi_name": "3F-D-16", "room_code": "C2.2.2", "room_name": "Instrument Store", "ccms_percent": "", "type": "SA", "design_flow": 83.0, "real_flow": "" },
+          { "venturi_name": "3F-D-17", "room_code": "C2.2.2", "room_name": "Instrument Store", "ccms_percent": "", "type": "EA", "design_flow": 60.0, "real_flow": "" },
+          { "venturi_name": "3F-D-18", "room_code": "C2.2.3", "room_name": "Clean Linen & Folding Room", "ccms_percent": "", "type": "EA", "design_flow": 43.0, "real_flow": "" },
+          { "venturi_name": "3F-D-19", "room_code": "C2.2.3", "room_name": "Clean Linen & Folding Room", "ccms_percent": "", "type": "SA", "design_flow": 113.0, "real_flow": "" },
+          { "venturi_name": "3F-D-20", "room_code": "C2.25", "room_name": "Room for Autoclave", "ccms_percent": "", "type": "EA", "design_flow": 213.0, "real_flow": "" },
+          { "venturi_name": "3F-D-21", "room_code": "C2.2.4", "room_name": "Low Temp. Sterilization Room", "ccms_percent": "", "type": "EA", "design_flow": 146.0, "real_flow": "" },
+          { "venturi_name": "3F-D-22", "room_code": "C2.2.4", "room_name": "Low Temp. Sterilization Room", "ccms_percent": "", "type": "SA", "design_flow": 179.0, "real_flow": "" },
+          { "venturi_name": "3F-D-23", "room_code": "-", "room_name": "CSSU Clean Zone", "ccms_percent": "", "type": "EA", "design_flow": 445.0, "real_flow": "" },
+          { "venturi_name": "VAV-3F-01", "room_code": "C2.2.1", "room_name": "Clean Pack Area", "ccms_percent": "", "type": "SA", "design_flow": 114.0, "real_flow": "" },
+          { "venturi_name": "VAV-3F-02", "room_code": "C2.3.6", "room_name": "Working / Dispatch Area", "ccms_percent": "", "type": "SA", "design_flow": 186.0, "real_flow": "" }
+        ];
+
+        let appData = [];
+        let chartInstance = null;
+        let autoSyncTimeout = null;
+
+        function initApp() {
+            const stored = localStorage.getItem('premium_venturi_flow_data');
+            const storedMetaStatus = localStorage.getItem('venturi_ahu_status');
+            const storedMetaSaf = localStorage.getItem('venturi_ahu_saf');
+            const storedMetaEafStatus = localStorage.getItem('venturi_eaf_status');
+            const storedMetaEaf = localStorage.getItem('venturi_eaf_saf');
+            let storedCloudUrl = localStorage.getItem('venturi_cloud_url');
+            const storedAutoSync = localStorage.getItem('venturi_cloud_autosync');
+
+            if (stored) {
+                try { appData = JSON.parse(stored); } catch(e) { appData = JSON.parse(JSON.stringify(originalDataBaseline)); }
+            } else { appData = JSON.parse(JSON.stringify(originalDataBaseline)); }
+
+            if (storedMetaStatus) document.getElementById('ahu-status-input').value = storedMetaStatus;
+            if (storedMetaSaf) document.getElementById('saf-percent-input').value = storedMetaSaf;
+            if (storedMetaEafStatus) document.getElementById('eaf-status-input').value = storedMetaEafStatus;
+            if (storedMetaEaf) document.getElementById('eaf-percent-input').value = storedMetaEaf;
+            
+            if (!storedCloudUrl || storedCloudUrl.trim() === "" || storedCloudUrl !== DEFAULT_CLOUD_URL) {
+                storedCloudUrl = DEFAULT_CLOUD_URL;
+                localStorage.setItem('venturi_cloud_url', storedCloudUrl);
+            }
+            document.getElementById('cloud-url-input').value = storedCloudUrl;
+            if (storedAutoSync === 'true' || storedAutoSync === null) document.getElementById('cloud-auto-sync').checked = true;
+
+            validateCloudUrl();
+            calculateTotalsAndDeviations(true);
+        }
+
+        function saveSystemMeta() {
+            localStorage.setItem('venturi_ahu_status', document.getElementById('ahu-status-input').value);
+            localStorage.setItem('venturi_ahu_saf', document.getElementById('saf-percent-input').value);
+            localStorage.setItem('venturi_eaf_status', document.getElementById('eaf-status-input').value);
+            localStorage.setItem('venturi_eaf_saf', document.getElementById('eaf-percent-input').value);
+            triggerDebouncedAutoSync();
+        }
+
+        function saveDataState() { localStorage.setItem('premium_venturi_flow_data', JSON.stringify(appData)); }
+        function toggleCloudModal() { document.getElementById('cloud-modal').classList.toggle('hidden'); }
+
+        function validateCloudUrl() {
+            const urlInput = document.getElementById('cloud-url-input').value.trim();
+            const btnSync = document.getElementById('btn-sync-now');
+            const indicator = document.getElementById('cloud-status-indicator');
+            localStorage.setItem('venturi_cloud_url', urlInput);
+
+            if (urlInput.startsWith('https://script.google.com/')) {
+                btnSync.disabled = false;
+                indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse block"></span> Ready to Sync';
+            } else {
+                btnSync.disabled = true;
+                indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500 block"></span> Invalid App Script Endpoint Link';
+            }
+        }
+
+        function toggleAutoSyncChange() { localStorage.setItem('venturi_cloud_autosync', document.getElementById('cloud-auto-sync').checked); }
+        function triggerDebouncedAutoSync() {
+            if (!document.getElementById('cloud-auto-sync').checked) return;
+            clearTimeout(autoSyncTimeout);
+            autoSyncTimeout = setTimeout(() => { syncToCloud(); }, 1200);
+        }
+
+        async function syncToCloud() {
+            const cloudUrl = document.getElementById('cloud-url-input').value.trim();
+            if (!cloudUrl || !cloudUrl.startsWith('https://script.google.com/')) return;
+
+            const btnSync = document.getElementById('btn-sync-now');
+            const indicator = document.getElementById('cloud-status-indicator');
+            
+            btnSync.innerText = "Syncing All...";
+            indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping block"></span> Rebuilding layout and updating records...';
+
+            const payload = {
+                ahu_status: document.getElementById('ahu-status-input').value,
+                saf_percent: document.getElementById('saf-percent-input').value,
+                eaf_status: document.getElementById('eaf-status-input').value,
+                eaf_percent: document.getElementById('eaf-percent-input').value,
+                timestamp: new Date().toLocaleString(),
+                records: appData.map(item => ({
+                    venturi_name: item.venturi_name,
+                    room_code: item.room_code || "-",
+                    room_name: item.room_name || "-",
+                    type: item.type,
+                    design_flow: parseFloat(item.design_flow) || 0,
+                    ccms_percent: item.ccms_percent !== "" ? (parseFloat(item.ccms_percent) || 0) : 0, 
+                    real_flow: item.real_flow !== "" ? (parseFloat(item.real_flow) || 0) : 0
+                }))
+            };
+
+            try {
+                await fetch(cloudUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    redirect: 'follow'
+                });
+                indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 block"></span> Synchronized Successfully!';
+            } catch (error) {
+                indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-400 block"></span> Connection / Pipeline Error';
+            } finally {
+                btnSync.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 15H19"></path></svg> Sync Now`;
+                setTimeout(validateCloudUrl, 3000);
+            }
+        }
+
+        function handleCellChange(index, key, value) {
+            appData[index][key] = (key === 'design_flow' || key === 'real_flow') && value !== '' ? parseFloat(value) : value;
+            saveDataState();
+            calculateTotalsAndDeviations(false);
+            triggerDebouncedAutoSync();
+        }
+
+        function calculateTotalsAndDeviations(shouldRenderTable = false) {
+            let saDesign = 0, saReal = 0, eaDesign = 0, eaReal = 0;
+            appData.forEach(item => {
+                let df = parseFloat(item.design_flow) || 0, rf = parseFloat(item.real_flow) || 0;
+                if (item.type === 'SA') { saDesign += df; saReal += rf; } else { eaDesign += df; eaReal += rf; }
+            });
+
+            document.getElementById('sa-design-total').innerText = saDesign.toFixed(1);
+            document.getElementById('sa-real-total').innerText = saReal.toFixed(1);
+            document.getElementById('ea-design-total').innerText = eaDesign.toFixed(1);
+            document.getElementById('ea-real-total').innerText = eaReal.toFixed(1);
+
+            let saDev = saDesign > 0 ? ((saReal - saDesign) / saDesign * 100) : 0;
+            let eaDev = eaDesign > 0 ? ((eaReal - eaDesign) / eaDesign * 100) : 0;
+            
+            document.getElementById('sa-deviation').innerText = saReal === 0 ? "Pending" : (saDev >= 0 ? '+' : '') + saDev.toFixed(1) + '%';
+            document.getElementById('ea-deviation').innerText = eaReal === 0 ? "Pending" : (eaDev >= 0 ? '+' : '') + eaDev.toFixed(1) + '%';
+
+            let netDesign = saDesign - eaDesign, netReal = saReal - eaReal;
+            document.getElementById('net-design-total').innerText = (netDesign >= 0 ? '+' : '') + netDesign.toFixed(1);
+            document.getElementById('net-real-total').innerText = (netReal >= 0 ? '+' : '') + netReal.toFixed(1);
+            
+            let badge = document.getElementById('balance-status-badge');
+            badge.innerText = netReal >= 0 ? "Positive (+)" : "Negative (-)";
+            badge.className = netReal >= 0 ? "bg-emerald-500/10 text-emerald-400 text-[10px] px-2 font-mono font-bold" : "bg-rose-500/10 text-rose-400 text-[10px] px-2 font-mono font-bold";
+            
+            document.getElementById('net-status-diff').innerText = `🔺 (${(netReal - netDesign).toFixed(1)} L/s)`;
+            document.getElementById('total-count').innerText = appData.length;
+            if (shouldRenderTable) renderTable();
+        }
+
+        function renderTable() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const filterType = document.getElementById('type-filter').value;
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            let shownCount = 0;
+
+            appData.forEach((item, index) => {
+                if (filterType !== 'ALL' && item.type !== filterType) return;
+                if (query && !item.venturi_name.toLowerCase().includes(query) && !item.room_name.toLowerCase().includes(query)) return;
+                shownCount++;
+
+                let df = parseFloat(item.design_flow) || 0, rf = parseFloat(item.real_flow), devText = '-';
+                if (!isNaN(rf) && df > 0) devText = (((rf - df) / df) * 100).toFixed(1) + '%';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/40 border-b border-slate-700/60";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-black text-white">${item.venturi_name}</td>
+                    <td class="py-3 px-3 font-mono">${item.room_code || '-'}</td>
+                    <td class="py-3 px-4 truncate">${item.room_name}</td>
+                    <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-black ${item.type === 'SA' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">${item.type}</span></td>
+                    <td class="py-3 px-4 text-right font-mono font-bold">${df.toFixed(1)}</td>
+                    <td class="py-1 px-4 bg-blue-950"><input type="text" value="${item.ccms_percent}" oninput="handleCellChange(${index}, 'ccms_percent', this.value)" class="grid-input w-full text-center border border-slate-700 rounded bg-slate-900 font-mono text-xs text-white"></td>
+                    <td class="py-1 px-4 bg-indigo-950"><input type="number" step="any" value="${item.real_flow}" oninput="handleCellChange(${index}, 'real_flow', this.value)" class="grid-input w-full text-center border border-slate-600 rounded bg-slate-900 font-mono text-blue-400 font-black text-xs"></td>
+                    <td class="py-3 px-4 text-right font-mono text-blue-300 font-bold">${devText}</td>
+                    <td class="py-3 px-4 text-center"><button onclick="deleteRow(${index})" class="text-slate-500 hover:text-rose-400 font-bold">✕</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('row-count').innerText = shownCount;
+        }
+
+        function addNewRow(e) {
+            e.preventDefault();
+            appData.push({
+                venturi_name: document.getElementById('new-vname').value,
+                room_code: document.getElementById('new-rcode').value || '-',
+                room_name: document.getElementById('new-rname').value,
+                ccms_percent: "",
+                type: document.getElementById('new-type').value,
+                design_flow: parseFloat(document.getElementById('new-dflow').value) || 0,
+                real_flow: ""
+            });
+            document.getElementById('add-row-form').reset();
+            saveDataState();
+            calculateTotalsAndDeviations(true);
+            triggerDebouncedAutoSync();
+        }
+
+        function deleteRow(index) {
+            if (confirm("Drop targeted dataset row?")) {
+                appData.splice(index, 1);
+                saveDataState();
+                calculateTotalsAndDeviations(true);
+                triggerDebouncedAutoSync();
+            }
+        }
+
+        function resetToDefault() {
+            if(confirm("Wipe storage and start over?")) {
+                localStorage.clear();
+                initApp();
+            }
+        }
+        function switchTab(id, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            btn.parentElement.querySelectorAll('button').forEach(b => b.className = "flex-1 px-5 text-xs text-slate-400 font-medium");
+            btn.className = "flex-1 px-5 text-xs font-black rounded-lg bg-blue-600 text-white shadow-md";
+            if(id === 'charts-tab') { setTimeout(renderFlowChart, 100); }
+        }
+
+        function renderFlowChart() {
+            const ctx = document.getElementById('flowComparisonChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: appData.map(i => i.venturi_name),
+                    datasets: [
+                        { label: 'Design Target', data: appData.map(i => i.design_flow), backgroundColor: 'rgba(148, 163, 184, 0.4)' },
+                        { label: 'Measured', data: appData.map(i => parseFloat(i.real_flow) || 0), backgroundColor: '#3b82f6' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function exportToCSV() {
+            let csv = "data:text/csv;charset=utf-8,Tag,Room,Name,Type,Design,CCMS,Measured\n";
+            appData.forEach(i => { csv += `"${i.venturi_name}","${i.room_code}","${i.room_name}","${i.type}",${i.design_flow},"${i.ccms_percent}",${i.real_flow}\n`; });
+            const link = document.createElement("a"); link.setAttribute("href", encodeURI(csv)); link.setAttribute("download", "Airflow_Report.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
